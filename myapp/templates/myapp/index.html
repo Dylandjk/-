@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>数据标注平台</title>
+    <link rel="stylesheet" href="https://cdn.bootcdn.net/ajax/libs/twitter-bootstrap/4.6.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.10.25/css/dataTables.bootstrap4.min.css">
+    <style>
+        .spinner-border {
+            vertical-align: middle;
+            margin-right: 5px;
+        }
+
+        .mt-1 {
+            margin-top: 0.25rem;
+        }
+
+        .card {
+            box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+            margin-bottom: 1.5rem;
+        }
+
+        .input-group-text {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body>
+<div class="container mt-4">
+
+    <!-- 在导航栏下方添加Prompt区域 -->
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">大模型配置</h5>
+        </div>
+        <div class="card-body">
+            <div class="form-group">
+                <label>Prompt模板（使用{{ text }}占位符）</label>
+                <textarea
+                        id="promptInput"
+                        class="form-control"
+                        rows="3"
+                        placeholder="示例：请根据以下文本回答问题：{{ text }}"
+                >请根据以下文本生成分析：{{ text }}</textarea>
+            </div>
+        </div>
+    </div>
+    <!-- 文件上传区 -->
+ 
+    <div class="card mb-4">
+        <div class="card-body">
+            <form id="uploadForm" enctype="multipart/form-data">
+                <div class="form-group">
+                    <input type="file" class="form-control-file" name="file" accept=".json,.txt">
+                    <button type="button" class="btn btn-primary" onclick="uploadFile()">
+                    <span id="uploadStatus">批量上传</span>
+                    <div id="uploadLoading" class="spinner-border spinner-border-sm" style="display: none;"></div>
+                </button>
+                </div>
+                
+            </form>
+        </div>
+    </div>
+
+    <!-- 在文件上传区域下方添加格式选择 -->
+{#    <div class="card mb-4">#}
+{#        <div class="card-body">#}
+{#            <div class="row">#}
+{#                <div class="col-md-4">#}
+{#                    <div class="input-group">#}
+{#                        <div class="input-group-prepend">#}
+{#                            <span class="input-group-text">下载格式</span>#}
+{#                        </div>#}
+{#                        <!-- 增加更多格式选项 -->#}
+{#                        <select id="formatSelect" class="form-control">#}
+{#                            <option value="json">JSON</option>#}
+{#                            <option value="txt">TXT</option>#}
+{##}
+{#                        </select>#}
+{#                    </div>#}
+{#                </div>#}
+{#                <div class="col-md-2">#}
+{#                    <button id="downloadBtn" class="btn btn-primary" onclick="downloadData()">下载数据</button>#}
+{#                </div>#}
+{#            </div>#}
+{#        </div>#}
+{#    </div>#}
+
+    <!-- 数据表格区 -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+    <h5 class="mb-0">数据表格</h5>
+    <div class="d-flex gap-3 align-items-center"> <!-- 修改了这里 -->
+        <div class="d-flex gap-1"> <!-- 新增按钮容器 -->
+            <button class="btn btn-success btn-sm" onclick="addRow()">+ 添加行</button>
+            <button class="btn btn-primary btn-sm" onclick="saveAll()">保存数据</button>
+            <button id="downloadBtn" class="btn btn-info btn-sm" onclick="downloadData()">下载数据</button>
+        </div>
+
+        <!-- 格式选择 -->
+        <select id="formatSelect" class="form-select btn-uniform">
+            <option value="json">JSON</option>
+            <option value="txt">TXT</option>
+        </select>
+    </div>
+</div>
+        <div class="card-body">
+            <table id="dataTable" class="table table-hover">
+                <thead>
+                <tr>
+                    <th>文本内容</th>
+                    <th>标注1</th>
+                    <th>标注2</th>
+                    <th>标注3</th>
+                    <th>标注4</th>
+                    <th>大模型答案</th>
+                    <th>操作</th>
+                </tr>
+                </thead>
+                <tbody>
+                {% for record in records %}
+                    <tr>
+                        <td contenteditable="true">{{ record.text }}</td>
+                        <td contenteditable="true">{{ record.label1 }}</td>
+                        <td contenteditable="true">{{ record.label2 }}</td>
+                        <td contenteditable="true">{{ record.label3 }}</td>
+                        <td contenteditable="true">{{ record.label4 }}</td>
+                        <td>
+                            {{ record.llm_answer }}
+                            <button class="btn btn-sm btn-info" onclick="generateAnswer(this)">生成答案</button>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-danger" onclick="deleteRow(this)">删除</button>
+                        </td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+
+<!-- Scripts -->
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.25/js/dataTables.bootstrap4.min.js"></script>
+<script>
+    // 初始化表格
+    $(document).ready(function () {
+        $('#dataTable').DataTable();
+    });
+
+    // 添加新行
+    function addRow() {
+        const newRow = `<tr>
+                <td contenteditable="true"></td>
+                <td contenteditable="true"></td>
+                <td contenteditable="true"></td>
+                <td contenteditable="true"></td>
+                <td>
+                    <button class="btn btn-sm btn-info" onclick="generateAnswer(this)">生成答案</button>
+                </td>
+                <td>
+                    <button class="btn btn-sm btn-danger" onclick="deleteRow(this)">删除</button>
+                </td>
+            </tr>`;
+        $('#dataTable tbody').append(newRow);
+    }
+
+    // 删除行
+    function deleteRow(btn) {
+        $(btn).closest('tr').remove();
+    }
+
+    // 保存数据
+    function saveAll() {
+        const tableData = [];
+        $('#dataTable tbody tr').each(function () {
+            const row = {
+                text: $(this).find('td:eq(0)').text(),
+                label1: $(this).find('td:eq(1)').text(),
+                label2: $(this).find('td:eq(2)').text(),
+                label3: $(this).find('td:eq(3)').text(),
+                llm_answer: $(this).find('td:eq(4)').text().replace('生成答案', '')
+            };
+            tableData.push(row);
+        });
+
+        $.ajax({
+            url: '/save/',
+            method: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify(tableData),
+            success: function () {
+                alert('保存成功！');
+                location.reload();
+            }
+        });
+    }
+
+
+    // 修改3：完善上传函数
+    function uploadFile() {
+        const fileInput = $('input[type=file]')[0];
+        if (!fileInput.files[0]) {
+            alert('请先选择文件');
+            return;
+        }
+
+        $('#uploadStatus').text('上传中...');
+        $('#uploadLoading').show();
+
+        const formData = new FormData();
+        formData.append('file', fileInput.files[0]);
+
+        $.ajax({
+            url: '/upload/',
+            method: 'POST',
+            data: formData,
+            contentType: false,
+            processData: false,
+            headers: {"X-CSRFToken": getCookie("csrftoken")},
+            success: function (response) {
+                if (response.status === 'success') {
+                    location.reload();
+                }
+            },
+            complete: function () {
+                $('#uploadStatus').text('批量上传');
+                $('#uploadLoading').hide();
+            }
+        });
+    }
+
+    // 生成答案
+    function generateAnswer(btn) {
+        const row = $(btn).closest('tr');
+        const text = row.find('td:eq(0)').text().trim();
+        const promptTemplate = $('#promptInput').val().trim();
+
+        // 替换占位符
+        const finalPrompt = promptTemplate.replace('{{text}}', text);
+
+        // 显示加载状态
+        $(btn).html('<span class="spinner-border spinner-border-sm"></span> 生成中...');
+
+        $.ajax({
+            url: '/generate/',
+            method: 'POST',
+            headers: {"X-CSRFToken": getCookie("csrftoken")},
+            data: {
+                text: text,
+                prompt: finalPrompt  // 添加prompt参数
+            },
+            success: function (response) {
+                if (response.status === 'success') {
+                    row.find('td:eq(4)').html(`
+                    ${response.answer}
+                    <button class="btn btn-sm btn-info mt-1" onclick="generateAnswer(this)">重新生成</button>
+                `);
+                }
+            },
+            complete: function () {
+                $(btn).html('生成答案');
+            }
+        });
+    }
+
+    // 修改1：完善保存函数
+    function saveAll() {
+        const tableData = [];
+        $('#dataTable tbody tr').each(function (index) {
+            const cells = $(this).find('td');
+            const row = {
+                text: cells.eq(0).text().trim(),
+                label1: cells.eq(1).text().trim(),
+                label2: cells.eq(2).text().trim(),
+                label3: cells.eq(3).text().trim(),
+                llm_answer: cells.eq(4).text().replace('生成答案', '').trim()
+            };
+            console.log(`第${index + 1}行数据:`, row);  // 调试输出
+            tableData.push(row);
+        });
+
+        $.ajax({
+            url: '/save/',
+            method: 'POST',
+            headers: {
+                "X-CSRFToken": getCookie("csrftoken"),  // 添加CSRF令牌
+                "Content-Type": "application/json"
+            },
+            data: JSON.stringify(tableData),
+            success: function (response) {
+                console.log("保存响应:", response);
+                if (response.status === 'success') {
+                    alert(`成功保存${response.count}条数据`);
+                    location.reload();
+                } else {
+                    alert('保存失败: ' + response.message);
+                }
+            }
+        });
+    }
+
+    // 修改2：添加CSRF令牌获取函数
+    function getCookie(name) {
+        let cookieValue = null;
+        if (document.cookie && document.cookie !== '') {
+            const cookies = document.cookie.split(';');
+            for (let i = 0; i < cookies.length; i++) {
+                const cookie = cookies[i].trim();
+                if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                    cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                    break;
+                }
+            }
+        }
+        return cookieValue;
+    }
+
+    function downloadData() {
+        const format = $('#formatSelect').val();
+        const apiUrl = `/download/?format=${encodeURIComponent(format)}`;
+
+        // 显示加载状态
+        const btn = $('#downloadBtn');
+        btn.prop('disabled', true).html('<span class="spinner-border spinner-border-sm"></span> 生成中...');
+
+        // 使用XMLHttpRequest以支持进度显示（可选）
+        const xhr = new XMLHttpRequest();
+        xhr.open('GET', apiUrl, true);
+        xhr.responseType = 'blob';
+
+        xhr.onload = function () {
+            if (this.status === 200) {
+                const blob = new Blob([this.response], {type: this.getResponseHeader('Content-Type')});
+                const url = window.URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.style.display = 'none';
+                a.href = url;
+                a.download = this.getResponseHeader('Content-Disposition').split('filename=')[1].replace(/"/g, '');
+                document.body.appendChild(a);
+                a.click();
+
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            }
+        };
+
+        xhr.onerror = function () {
+            alert('下载失败，请检查网络连接');
+        };
+
+        xhr.onloadend = function () {
+            btn.prop('disabled', false).html('下载数据');
+        };
+
+        xhr.send();
+    }
+
+</script>
+</body>
+</html>
