@@ -23,9 +23,34 @@
         .input-group-text {
             background-color: #f8f9fa;
         }
+
+        /* 添加以下样式确保浏览器兼容 */
+        .form-control-file::-webkit-file-upload-button {
+            visibility: hidden;
+        }
+
+        .form-control-file::before {
+            content: '选择文件';
+            display: inline-block;
+            background: #f8f9fa;
+            border: 1px solid #ced4da;
+            border-radius: 0.25rem;
+            padding: 0.375rem 0.75rem;
+            margin-right: 0.5rem;
+            cursor: pointer;
+        }
     </style>
 </head>
 <body>
+
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <a class="navbar-brand" href="#">数据管理平台</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+</nav>
+
 <div class="container mt-4">
 
     <!-- 在导航栏下方添加Prompt区域 -->
@@ -35,7 +60,7 @@
         </div>
         <div class="card-body">
             <div class="form-group">
-                <label>Prompt模板（使用{{ text }}占位符）</label>
+                <label>Prompt模板</label>
                 <textarea
                         id="promptInput"
                         class="form-control"
@@ -46,64 +71,74 @@
         </div>
     </div>
     <!-- 文件上传区 -->
- 
+
     <div class="card mb-4">
         <div class="card-body">
             <form id="uploadForm" enctype="multipart/form-data">
-                <div class="form-group">
-                    <input type="file" class="form-control-file" name="file" accept=".json,.txt">
-                    <button type="button" class="btn btn-primary" onclick="uploadFile()">
-                    <span id="uploadStatus">批量上传</span>
-                    <div id="uploadLoading" class="spinner-border spinner-border-sm" style="display: none;"></div>
-                </button>
+                <div class="form-group d-flex align-items-center"> <!-- 修改这里 -->
+                    <!-- 文件输入框 -->
+                    <input type="file"
+                           class="form-control-file flex-grow-1 mr-3"
+                           name="file"
+                           accept=".json,.txt"
+                           style="width: auto;"> <!-- 新增样式 -->
+
+                    <!-- 上传按钮 -->
+                    <button type="button"
+                            class="btn btn-primary btn-sm d-flex align-items-center"
+                            onclick="uploadFile()">
+                        <span id="uploadStatus">批量上传数据</span>
+                        <div id="uploadLoading"
+                             class="spinner-border spinner-border-sm ml-2"
+                             style="display: none;"></div>
+                    </button>
                 </div>
-                
             </form>
         </div>
     </div>
 
     <!-- 在文件上传区域下方添加格式选择 -->
-{#    <div class="card mb-4">#}
-{#        <div class="card-body">#}
-{#            <div class="row">#}
-{#                <div class="col-md-4">#}
-{#                    <div class="input-group">#}
-{#                        <div class="input-group-prepend">#}
-{#                            <span class="input-group-text">下载格式</span>#}
-{#                        </div>#}
-{#                        <!-- 增加更多格式选项 -->#}
-{#                        <select id="formatSelect" class="form-control">#}
-{#                            <option value="json">JSON</option>#}
-{#                            <option value="txt">TXT</option>#}
-{##}
-{#                        </select>#}
-{#                    </div>#}
-{#                </div>#}
-{#                <div class="col-md-2">#}
-{#                    <button id="downloadBtn" class="btn btn-primary" onclick="downloadData()">下载数据</button>#}
-{#                </div>#}
-{#            </div>#}
-{#        </div>#}
-{#    </div>#}
+    {#    <div class="card mb-4">#}
+    {#        <div class="card-body">#}
+    {#            <div class="row">#}
+    {#                <div class="col-md-4">#}
+    {#                    <div class="input-group">#}
+    {#                        <div class="input-group-prepend">#}
+    {#                            <span class="input-group-text">下载格式</span>#}
+    {#                        </div>#}
+    {#                        <!-- 增加更多格式选项 -->#}
+    {#                        <select id="formatSelect" class="form-control">#}
+    {#                            <option value="json">JSON</option>#}
+    {#                            <option value="txt">TXT</option>#}
+    {##}
+    {#                        </select>#}
+    {#                    </div>#}
+    {#                </div>#}
+    {#                <div class="col-md-2">#}
+    {#                    <button id="downloadBtn" class="btn btn-primary" onclick="downloadData()">下载数据</button>#}
+    {#                </div>#}
+    {#            </div>#}
+    {#        </div>#}
+    {#    </div>#}
 
     <!-- 数据表格区 -->
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-    <h5 class="mb-0">数据表格</h5>
-    <div class="d-flex gap-3 align-items-center"> <!-- 修改了这里 -->
-        <div class="d-flex gap-1"> <!-- 新增按钮容器 -->
-            <button class="btn btn-success btn-sm" onclick="addRow()">+ 添加行</button>
-            <button class="btn btn-primary btn-sm" onclick="saveAll()">保存数据</button>
-            <button id="downloadBtn" class="btn btn-info btn-sm" onclick="downloadData()">下载数据</button>
-        </div>
+            <h5 class="mb-0">数据表格</h5>
+            <div class="d-flex gap-3 align-items-center"> <!-- 修改了这里 -->
+                <div> <!-- 新增按钮容器 -->
+                    <button class="btn btn-success btn-sm" onclick="addRow()">+ 添加行</button>
+                    <button class="btn btn-primary btn-sm" onclick="saveAll()">保存数据</button>
+                    <button id="downloadBtn" class="btn btn-secondary btn-sm" onclick="downloadData()">下载数据</button>
+                </div>
 
-        <!-- 格式选择 -->
-        <select id="formatSelect" class="form-select btn-uniform">
-            <option value="json">JSON</option>
-            <option value="txt">TXT</option>
-        </select>
-    </div>
-</div>
+                <!-- 格式选择 -->
+                <select id="formatSelect" class="form-select btn-uniform">
+                    <option value="json">JSON</option>
+                    <option value="txt">TXT</option>
+                </select>
+            </div>
+        </div>
         <div class="card-body">
             <table id="dataTable" class="table table-hover">
                 <thead>
